@@ -40,7 +40,10 @@ struct MenuBarView: View {
                                     set: {
                                         resolutionPercent = $0
                                         if let mode = display.closestMode(to: $0) {
-                                            service.schedulePreview(mode)
+                                            service.schedulePreview(
+                                                mode,
+                                                automaticallyKeep: true
+                                            )
                                         }
                                     }
                                 ),
@@ -59,7 +62,10 @@ struct MenuBarView: View {
                                         }
                                         let mode = display.resolutionModes[index]
                                         resolutionPercent = Double(display.scalePercent(for: mode))
-                                        service.schedulePreview(mode)
+                                        service.schedulePreview(
+                                            mode,
+                                            automaticallyKeep: true
+                                        )
                                     }
                                 ),
                                 in: 0...Double(max(0, display.resolutionModes.count - 1)),
@@ -73,18 +79,6 @@ struct MenuBarView: View {
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    }
-                }
-                if let pending = service.pendingChange,
-                   pending.displayID == display.id {
-                    HStack {
-                        Text("\(service.confirmationSeconds) 秒后恢复")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        Spacer()
-                        Button("恢复") { service.revertMode() }
-                        Button("保留") { service.keepMode() }
-                            .buttonStyle(.borderedProminent)
                     }
                 }
                 Divider()

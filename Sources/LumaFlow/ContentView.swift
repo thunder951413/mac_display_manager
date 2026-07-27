@@ -17,6 +17,7 @@ struct ContentView: View {
                         hero(display)
                         resolutionPanel(display)
                         controlsPanel
+                        applicationSettingsPanel
                     }
                     .padding(28)
                 }
@@ -322,6 +323,34 @@ struct ContentView: View {
                                 ? Color.secondary
                                 : Color.orange
                         )
+                }
+            }
+        }
+    }
+
+    private var applicationSettingsPanel: some View {
+        panel {
+            VStack(alignment: .leading, spacing: 18) {
+                sectionTitle("应用设置", icon: "gearshape.fill")
+                HStack(spacing: 14) {
+                    Image(systemName: "dock.rectangle")
+                        .font(.title3)
+                        .foregroundStyle(.blue)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("隐藏 Dock 图标")
+                            .font(.body.weight(.medium))
+                        Text("隐藏后 LumaFlow 仍会驻留菜单栏，主窗口可从菜单栏重新打开。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle(
+                        "隐藏 Dock 图标",
+                        isOn: $service.hideDockIcon
+                    )
+                    .labelsHidden()
+                    .toggleStyle(.switch)
                 }
             }
         }

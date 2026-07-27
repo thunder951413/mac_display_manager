@@ -180,6 +180,14 @@ final class DisplayService: ObservableObject {
     @Published var restartRequired = false
     @Published var brightnessKeyPermissionGranted = false
     @Published private(set) var brightnessKeyFeedback: String?
+    @Published var hideDockIcon = UserDefaults.standard.bool(
+        forKey: "hideDockIcon"
+    ) {
+        didSet {
+            UserDefaults.standard.set(hideDockIcon, forKey: "hideDockIcon")
+            applyDockIconPreference()
+        }
+    }
     @Published var controlFocusedDisplayWithBrightnessKeys = UserDefaults.standard.object(
         forKey: "controlFocusedDisplayWithBrightnessKeys"
     ) as? Bool ?? true {
@@ -209,6 +217,7 @@ final class DisplayService: ObservableObject {
             Task { @MainActor in self?.handleBrightnessKey(event) }
         }
         brightnessKeyPermissionGranted = brightnessKeyMonitor?.start() == true
+        applyDockIconPreference()
     }
 
     deinit {
@@ -221,6 +230,13 @@ final class DisplayService: ObservableObject {
     var selectedDisplay: DisplayInfo? {
         guard let selectedDisplayID else { return displays.first }
         return displays.first { $0.id == selectedDisplayID }
+    }
+
+    private func applyDockIconPreference() {
+        NSApp.setActivationPolicy(hideDockIcon ? .accessory : .regular)
+        if !hideDockIcon {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     func refresh() {
@@ -311,16 +327,22 @@ final class DisplayService: ObservableObject {
         }
     }
 
-    func schedulePreview(_ mode: DisplayModeOption) {
+    func schedulePreview(
+        _ mode: DisplayModeOption,
+        automaticallyKeep: Bool = false
+    ) {
         previewTask?.cancel()
         previewTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(450))
             guard !Task.isCancelled else { return }
-            self?.apply(mode)
+            self?.apply(mode, automaticallyKeep: automaticallyKeep)
         }
     }
 
-    func apply(_ mode: DisplayModeOption) {
+    func apply(
+        _ mode: DisplayModeOption,
+        automaticallyKeep: Bool = false
+    ) {
         guard let display = selectedDisplay,
               mode.id != display.currentModeID,
               let previous = CGDisplayCopyDisplayMode(display.id) else { return }
@@ -328,6 +350,14 @@ final class DisplayService: ObservableObject {
         let result = switchMode(displayID: display.id, mode: mode.mode)
         guard result == .success else {
             statusMessage = "无法切换到 \(mode.title)（错误 \(result.rawValue)）"
+            return
+        }
+
+        if automaticallyKeep {
+            countdownTask?.cancel()
+            pendingChange = nil
+            saveMode(mode, for: display)
+            refresh()
             return
         }
 
