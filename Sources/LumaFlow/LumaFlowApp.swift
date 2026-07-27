@@ -5,7 +5,7 @@ struct LumaFlowApp: App {
     @StateObject private var displays = DisplayService()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("LumaFlow", id: "main") {
             ContentView()
                 .environmentObject(displays)
                 .frame(minWidth: 980, minHeight: 650)
@@ -22,9 +22,12 @@ struct LumaFlowApp: App {
             }
         }
 
-        MenuBarExtra("LumaFlow", systemImage: "display.2") {
+        MenuBarExtra {
             MenuBarView()
                 .environmentObject(displays)
+        } label: {
+            Image(nsImage: LumaFlowMenuBarIcon.image)
+                .accessibilityLabel("LumaFlow")
         }
         .menuBarExtraStyle(.window)
     }

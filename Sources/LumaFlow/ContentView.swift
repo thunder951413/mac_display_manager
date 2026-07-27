@@ -66,12 +66,9 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 9)
-                        .fill(.blue.gradient)
-                    Image(systemName: "display.2")
-                        .foregroundStyle(.white)
-                }
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .scaledToFit()
                 .frame(width: 36, height: 36)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("LumaFlow").font(.headline)
@@ -275,11 +272,6 @@ struct ContentView: View {
                     )
                 }
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
-                    ForEach(display.presentationModes) { mode in
-                        modeCard(mode, display: display, current: mode.id == display.currentModeID)
-                    }
-                }
             }
         }
     }
@@ -350,37 +342,6 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 64, alignment: .trailing)
         }
-    }
-
-    private func modeCard(_ mode: DisplayModeOption, display: DisplayInfo, current: Bool) -> some View {
-        Button {
-            service.apply(mode)
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("\(display.scalePercent(for: mode))%").font(.headline)
-                    Text("\(mode.title) · \(Int(mode.refreshRate.rounded())) Hz\(mode.isHiDPI ? " · HiDPI" : "")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button {
-                    service.toggleFavorite(mode)
-                } label: {
-                    Image(systemName: service.favorites.contains(mode.id) ? "star.fill" : "star")
-                        .foregroundStyle(service.favorites.contains(mode.id) ? .yellow : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(14)
-            .background(current ? Color.accentColor.opacity(0.13) : Color.primary.opacity(0.045))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(current ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
     }
 
     private func confirmationBar(_ pending: PendingModeChange) -> some View {

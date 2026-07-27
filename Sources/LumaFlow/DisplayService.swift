@@ -156,19 +156,6 @@ struct DisplayInfo: Identifiable {
         }
     }
 
-    var presentationModes: [DisplayModeOption] {
-        guard hasThreePercentCoverage else { return resolutionModes }
-        var seen = Set<String>()
-        return stride(
-            from: Int(percentRange.lowerBound),
-            through: Int(percentRange.upperBound),
-            by: 3
-        ).compactMap { target in
-            guard let mode = closestMode(to: Double(target)),
-                  seen.insert(mode.id).inserted else { return nil }
-            return mode
-        }
-    }
 }
 
 struct PendingModeChange: Identifiable {
@@ -185,7 +172,6 @@ final class DisplayService: ObservableObject {
     @Published var softwareBrightness: Double = 1
     @Published var contrast: Double = 1
     @Published var warmth: Double = 0
-    @Published var favorites: Set<String> = []
     @Published var pendingChange: PendingModeChange?
     @Published var confirmationSeconds = 15
     @Published var statusMessage: String?
@@ -211,10 +197,10 @@ final class DisplayService: ObservableObject {
     private var knownDisplayKeys = Set<String>()
     private let settingsStore = DisplaySettingsStore.shared
     private let hardwareController = DisplayHardwareController()
+    private let brightnessHUDController = BrightnessHUDController()
 
     init() {
         refresh()
-        favorites = Set(UserDefaults.standard.stringArray(forKey: "favoriteModes") ?? [])
         CGDisplayRegisterReconfigurationCallback(
             displayReconfigurationCallback,
             Unmanaged.passUnretained(self).toOpaque()
@@ -418,12 +404,6 @@ final class DisplayService: ObservableObject {
         }
     }
 
-    func toggleFavorite(_ mode: DisplayModeOption) {
-        if favorites.contains(mode.id) { favorites.remove(mode.id) }
-        else { favorites.insert(mode.id) }
-        UserDefaults.standard.set(Array(favorites), forKey: "favoriteModes")
-    }
-
     func updateImageControls() {
         guard let display = selectedDisplay else { return }
         var settings = settingsStore.settings(for: display.stableKey)
@@ -526,7 +506,12 @@ final class DisplayService: ObservableObject {
     func requestBrightnessKeyPermission() {
         brightnessKeyPermissionGranted = brightnessKeyMonitor?.start(prompt: true) == true
         if !brightnessKeyPermissionGranted {
-            statusMessage = "请在“系统设置 → 隐私与安全性 → 辅助功能”中允许 LumaFlow，然后重新打开应用。"
+            statusMessage = "请在无障碍列表中允许 LumaFlow。若列表中仍未出现，请点“+”并选择“应用程序”中的 LumaFlow。"
+            if let url = URL(
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            ) {
+                NSWorkspace.shared.open(url)
+            }
         }
     }
 
@@ -564,6 +549,7 @@ final class DisplayService: ObservableObject {
             softwareBrightness = settings.brightness
         }
         brightnessKeyFeedback = "\(display.name) · \(Int((settings.brightness * 100).rounded()))%"
+        brightnessHUDController.show(value: settings.brightness, on: display)
     }
 
     private func focusedDisplay() -> DisplayInfo? {
