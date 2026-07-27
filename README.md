@@ -110,6 +110,26 @@ open /Applications/LumaFlow.app
 swift test
 ```
 
+## 发布 Release
+
+仓库包含 `.github/workflows/release.yml`。在 GitHub 的 **Actions → Release**
+中点击 **Run workflow**，输入不带 `v` 的语义化版本号，例如 `1.0.0`。
+
+发布流程会自动：
+
+1. 校验版本号并避免覆盖已有 Release。
+2. 写入应用版本和构建编号。
+3. 运行测试并构建 macOS 应用。
+4. 验证应用签名和 Bundle 版本。
+5. 生成 ZIP 安装包与 SHA-256 校验文件。
+6. 创建 `v版本号` 标签和 GitHub Release。
+
+也可以通过 GitHub CLI 触发：
+
+```bash
+gh workflow run release.yml --ref main -f version=1.0.0
+```
+
 ## 首次配置
 
 ### 键盘亮度键

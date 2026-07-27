@@ -1,0 +1,88 @@
+name: Release
+
+run-name: Release v${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version without the v prefix (for example 1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Version must be a semantic version such as 1.0.0"
+            exit 1
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "::error::Release v$VERSION already exists"
+            exit 1
+          fi
+
+      - name: Set bundle version
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleShortVersionString $VERSION" \
+            Resources/Info.plist
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleVersion $BUILD_NUMBER" \
+            Resources/Info.plist
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build application
+        run: ./scripts/build-app.sh
+
+      - name: Verify bundle
+        run: |
+          codesign --verify --deep --strict dist/LumaFlow.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/LumaFlow.app/Contents/Info.plist)" = "${{ inputs.version }}"
+
+      - name: Package release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          ARCHIVE="LumaFlow-${VERSION}-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent \
+            dist/LumaFlow.app "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE" > "${ARCHIVE}.sha256"
+
+      - name: Create GitHub release
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARCHIVE="LumaFlow-${VERSION}-macOS.zip"
+          gh release create "v$VERSION" \
+            "$ARCHIVE" \
+            "${ARCHIVE}.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "LumaFlow $VERSION" \
+            --generate-notes
